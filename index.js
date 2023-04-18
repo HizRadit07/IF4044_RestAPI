@@ -32,6 +32,13 @@ function isValidDate(dateStr) {
   return true;
 }
 
+function convertToISO(dateString) {
+  const [datePart, timePart] = dateString.split(' ');
+  const [year, month, day] = datePart.split('-');
+  const [hour, minute] = timePart.split(':');
+  const isoString = new Date(year, month - 1, day, hour, minute).toISOString();
+  return isoString;
+}
 
 app.use(bodyParser.json())
 app.use(
@@ -45,7 +52,8 @@ app.get('/', (request, response) => {
 })
 
 app.get('/precomputed_view', (request, response) => {
-  const { start_date, end_date, social_media } = request.query;
+  let { start_date, end_date, social_media } = request.query;
+
   if (!start_date || !end_date || !social_media) {
     return response.status(400).json({ message: 'Missing mandatory query parameters.' });
   }
@@ -60,7 +68,11 @@ app.get('/precomputed_view', (request, response) => {
     return response.status(400).json({ message: 'Date invalid' });
   }
 
-  pool.query('SELECT * FROM social_media', (err, results) =>{
+
+  let start_date_formatted = convertToISO(start_date)
+  let end_date_formatted = convertToISO(end_date)
+  
+  pool.query(`SELECT social_media.social_media, timestamp, count, unique_count FROM social_media WHERE timestamp >= '${start_date_formatted}' AND timestamp <= '${end_date_formatted}' AND social_media.social_media = '${social_media}'`, (err, results) =>{
     if (err){
       return response.status(400).json({ message: 'Something went wrong when querying database' });
     }
