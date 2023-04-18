@@ -13,6 +13,25 @@ const pool = new Pool({ //later, secure this by adding env variable or something
   port: 5432
 });
 
+function isValidDate(dateStr) {
+  const date = new Date(dateStr.replace(/-/g, "/"));
+  const minDate = new Date("2000-01-01T00:00:00.000Z");
+  const maxDate = new Date("2100-01-01T00:00:00.000Z");
+  
+  // Check if the date string is in the YYYY-MM-DD HH:mm format
+  if (!dateStr.match(/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/)) {
+    return false;
+  }
+  
+  // Check if the date is within a valid range
+  if (date < minDate || date > maxDate) {
+    return false;
+  }
+  
+  // If we've made it this far, the date is valid
+  return true;
+}
+
 
 app.use(bodyParser.json())
 app.use(
@@ -26,11 +45,26 @@ app.get('/', (request, response) => {
 })
 
 app.get('/precomputed_view', (request, response) => {
-  pool.query('SELECT * FROM social_medua', (err, results) =>{
+  const { start_date, end_date, social_media } = request.query;
+  if (!start_date || !end_date || !social_media) {
+    return response.status(400).json({ message: 'Missing mandatory query parameters.' });
+  }
+
+  social_media = social_media.toLowerCase()
+  const arr = ["facebook", "instagram", "youtube", "twitter"]
+  if (!arr.includes(social_media)) {
+    return response.status(400).json({ message: 'Social media invalid' });
+  }
+
+  if (!isValidDate(start_date) || !isValidDate(end_date)) {
+    return response.status(400).json({ message: 'Date invalid' });
+  }
+
+  pool.query('SELECT * FROM social_media', (err, results) =>{
     if (err){
-      throw err;
+      return response.status(400).json({ message: 'Something went wrong when querying database' });
     }
-    response.status(200).json(results.rows);
+    return response.status(200).json(results.rows);
   })
 })
 
